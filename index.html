@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>CineNest — Watch Movies & TV Shows</title>
+    <title>CineNest — Safe Movie Streaming (No Popups)</title>
     <style>
         * {
             margin: 0;
@@ -45,6 +45,14 @@
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
+        }
+
+        .safety-badge {
+            background: #1a5220;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
         }
 
         .search-wrapper {
@@ -226,6 +234,15 @@
             color: #cfdaf5;
         }
 
+        .safety-notice {
+            background: #1a2a3a;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            color: #7bc47f;
+        }
+
         .player-container {
             margin: 0 1.5rem 1.5rem 1.5rem;
             border-radius: 20px;
@@ -318,9 +335,9 @@
 <body>
     <div class="navbar">
         <div class="nav-container">
-            <div class="logo">🎬 CineNest</div>
+            <div class="logo">🎬 CineNest <span class="safety-badge">🛡️ NO POPUPS</span></div>
             <div class="search-wrapper">
-                <input type="text" id="searchInput" class="search-input" placeholder="Search any movie or TV show... (Squid Game, Inception, Breaking Bad)" autocomplete="off">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search any movie or TV show..." autocomplete="off">
                 <button id="searchBtn" class="search-btn">Search</button>
             </div>
         </div>
@@ -331,7 +348,7 @@
             <div class="loading">🔍 Search for any movie or TV show...</div>
         </div>
         <div id="detailContainer"></div>
-        <div class="footer">🎬 Streaming from moviefan.org • Click play to watch</div>
+        <div class="footer">🛡️ Sandboxed player - No popups, no redirects, safe streaming</div>
     </div>
 
     <script>
@@ -373,7 +390,6 @@
                 const title = item.t || 'Unknown';
                 const slugUrl = item.s;
                 const isTv = item.d === 's';
-                const mediaType = isTv ? 'TV Series' : 'Movie';
                 const posterUrl = item.p || 'https://via.placeholder.com/300x450?text=No+Poster';
                 
                 card.onclick = () => fetchMovieVideo(slugUrl, title, posterUrl, item.d);
@@ -392,6 +408,24 @@
 
             container.innerHTML = '';
             container.appendChild(grid);
+        }
+
+        function createSafeIframe(videoUrl) {
+            const iframe = document.createElement('iframe');
+            iframe.src = videoUrl;
+            
+            // CRITICAL: Sandbox attributes that BLOCK popups and redirects
+            // This prevents any JavaScript from opening new windows or redirecting
+            iframe.sandbox = 'allow-same-origin allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox';
+            // Note: 'allow-popups' is deliberately NOT included to block popups
+            // 'allow-top-navigation' is deliberately NOT included to block redirects
+            
+            iframe.allow = 'accelerometer; autoplay; fullscreen';
+            iframe.allowFullscreen = true;
+            iframe.referrerPolicy = 'no-referrer';
+            iframe.loading = 'lazy';
+            
+            return iframe;
         }
 
         async function fetchMovieVideo(slugUrl, title, poster, typeCode) {
@@ -426,7 +460,9 @@
                             </div>
                             <div class="detail-text">
                                 <p>Click the play button below to start watching.</p>
-                                ${isTv ? '<p style="color:#6a88ff;">📺 TV Series - You can select different seasons and episodes below</p>' : ''}
+                                <div class="safety-notice">
+                                    🛡️ <strong>Safe Player Active</strong> - Popups and redirects are blocked. You can watch safely.
+                                </div>
                             </div>
                         </div>
                         <div class="player-container" id="playerContainer">
@@ -449,11 +485,9 @@
                                 <option value="1">Episode 1</option>
                             </select>
                             <button id="loadEpisodeBtn">Load Episode</button>
-                            <span style="color:#6a88ff; font-size:0.8rem;" id="episodeInfo"></span>
                         </div>
                     `;
                 } else if (isTv) {
-                    // Fallback if no episode data
                     html += `
                         <div class="episode-selector">
                             <label>📺 Season:</label>
@@ -468,11 +502,9 @@
                 html += `</div>`;
                 detailContainer.innerHTML = html;
                 
-                // Setup season/episode dropdowns if TV show
                 if (isTv && currentEpisodes && currentEpisodes.seasons) {
                     const seasonSelect = document.getElementById('seasonSelect');
                     const episodeSelect = document.getElementById('episodeSelect');
-                    const episodeInfo = document.getElementById('episodeInfo');
                     
                     function updateEpisodeDropdown() {
                         const selectedSeason = parseInt(seasonSelect.value);
@@ -486,18 +518,12 @@
                                 option.textContent = `Episode ${ep}`;
                                 episodeSelect.appendChild(option);
                             });
-                            if (episodeInfo) {
-                                episodeInfo.textContent = `${episodes.length} episodes available`;
-                            }
                         } else {
                             for (let i = 1; i <= 12; i++) {
                                 const option = document.createElement('option');
                                 option.value = i;
                                 option.textContent = `Episode ${i}`;
                                 episodeSelect.appendChild(option);
-                            }
-                            if (episodeInfo) {
-                                episodeInfo.textContent = `~12 episodes (estimated)`;
                             }
                         }
                     }
@@ -506,18 +532,16 @@
                     updateEpisodeDropdown();
                 }
                 
-                // Setup play button with the video URL
+                // Setup play button with SAFE iframe
                 const playBtn = document.getElementById('playBtn');
                 const iframeWrapper = document.getElementById('iframeWrapper');
                 
                 if (playBtn && iframeWrapper && data.videoUrl) {
                     playBtn.addEventListener('click', () => {
-                        const iframe = document.createElement('iframe');
-                        iframe.src = data.videoUrl;
-                        iframe.allow = 'accelerometer; autoplay; fullscreen';
-                        iframe.allowFullscreen = true;
+                        // Use the safe iframe creator that blocks popups
+                        const safeIframe = createSafeIframe(data.videoUrl);
                         iframeWrapper.style.display = 'block';
-                        iframeWrapper.appendChild(iframe);
+                        iframeWrapper.appendChild(safeIframe);
                         playBtn.style.display = 'none';
                     });
                 } else if (playBtn && !data.videoUrl) {
@@ -526,7 +550,7 @@
                     playBtn.title = 'Video URL not available';
                 }
                 
-                // Setup TV episode selector
+                // Setup TV episode selector with SAFE iframe
                 if (isTv) {
                     const loadBtn = document.getElementById('loadEpisodeBtn');
                     if (loadBtn) {
@@ -550,7 +574,6 @@
                                 newIframeWrapper.style.display = 'none';
                             }
                             
-                            // Show loading indicator
                             loadBtn.textContent = 'Loading...';
                             loadBtn.disabled = true;
                             
@@ -560,12 +583,9 @@
                                 
                                 if (episodeData.videoUrl && newPlayBtn && newIframeWrapper) {
                                     newPlayBtn.onclick = () => {
-                                        const iframe = document.createElement('iframe');
-                                        iframe.src = episodeData.videoUrl;
-                                        iframe.allow = 'accelerometer; autoplay; fullscreen';
-                                        iframe.allowFullscreen = true;
+                                        const safeIframe = createSafeIframe(episodeData.videoUrl);
                                         newIframeWrapper.style.display = 'block';
-                                        newIframeWrapper.appendChild(iframe);
+                                        newIframeWrapper.appendChild(safeIframe);
                                         newPlayBtn.style.display = 'none';
                                     };
                                 }
@@ -597,13 +617,11 @@
             });
         }
 
-        // Event listeners
         document.getElementById('searchBtn').addEventListener('click', searchMovies);
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') searchMovies();
         });
         
-        // Load default popular movies on start
         setTimeout(() => {
             document.getElementById('searchInput').value = 'popular';
             searchMovies();
