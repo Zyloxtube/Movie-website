@@ -159,11 +159,5 @@ def get_fallback_movie_details(imdb_id):
     }
 
 if __name__ == '__main__':
-    print("\n" + "="*50)
-    print("🎬 Movie Website Server Started!")
-    print("="*50)
-    print("📍 Open your browser and go to: http://localhost:5000")
-    print("🔍 Search any movie and click play to watch")
-    print("⏹️ Press CTRL+C to stop the server")
-    print("="*50 + "\n")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
