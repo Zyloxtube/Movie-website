@@ -3,7 +3,7 @@ from flask_cors import CORS
 import requests
 import re
 import os
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 app = Flask(__name__)
 CORS(app)
@@ -60,9 +60,12 @@ def get_movie_video(slug_url):
         iframe_html = get_video_link(encoded_id, media_type, season, episode)
         video_url = extract_video_url_from_iframe(iframe_html) if iframe_html else None
         
+        # Clean the video URL to remove tracking parameters
+        if video_url:
+            video_url = clean_url(video_url)
+        
         title, poster = get_movie_info(slug_url)
         
-        # Get episodes list for TV shows
         episodes = None
         if media_type == 'tv':
             episodes = get_episodes_list(slug_url)
@@ -94,6 +97,9 @@ def get_tv_episode_video(slug_url):
         iframe_html = get_video_link(encoded_id, 'tv', season, episode)
         video_url = extract_video_url_from_iframe(iframe_html) if iframe_html else None
         
+        if video_url:
+            video_url = clean_url(video_url)
+        
         return jsonify({
             'videoUrl': video_url,
             'season': season,
@@ -103,6 +109,68 @@ def get_tv_episode_video(slug_url):
     except Exception as e:
         print(f"TV episode error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/proxy', methods=['GET'])
+def proxy_video():
+    """Proxy endpoint to avoid CORS and clean video responses"""
+    url = request.args.get('url', '')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+    
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://moviefan.org"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=30, stream=True)
+        
+        # Return the content with appropriate headers
+        return response.content, response.status_code, {
+            'Content-Type': response.headers.get('Content-Type', 'video/mp4'),
+            'Access-Control-Allow-Origin': '*'
+        }
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def clean_url(url):
+    """Remove tracking parameters from URL"""
+    if not url:
+        return url
+    
+    # Parse URL and remove common tracking params
+    parsed = urlparse(url)
+    
+    # List of tracking parameters to remove
+    tracking_params = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                       'ref', 'source', 'tracking', 'clickid', 'fbclid', 'gclid', 'msclkid',
+                       '_ga', '_gl', 'session_id', 'redirect', 'popup', 'ad']
+    
+    # Clean query parameters
+    query_params = []
+    if parsed.query:
+        params = parsed.query.split('&')
+        for param in params:
+            if '=' in param:
+                key = param.split('=')[0].lower()
+                if key not in tracking_params:
+                    query_params.append(param)
+    
+    cleaned_query = '&'.join(query_params) if query_params else ''
+    
+    # Rebuild URL
+    from urllib.parse import ParseResult
+    cleaned = ParseResult(
+        scheme=parsed.scheme,
+        netloc=parsed.netloc,
+        path=parsed.path,
+        params=parsed.params,
+        query=cleaned_query,
+        fragment=parsed.fragment
+    )
+    
+    return cleaned.geturl()
 
 def get_encoded_id_from_page(slug_url):
     full_url = urljoin(BASE_URL, slug_url)
@@ -120,9 +188,7 @@ def get_encoded_id_from_page(slug_url):
             match = re.search(pattern, response.text)
             
             if match:
-                encoded_id = match.group(1)
-                media_type = match.group(2)
-                return encoded_id, media_type
+                return match.group(1), match.group(2)
             
             alt_pattern = r"getlink\('([^']+)','([^']+)'"
             alt_match = re.search(alt_pattern, response.text)
@@ -169,7 +235,6 @@ def get_movie_info(slug_url):
         return title, poster
 
 def get_episodes_list(slug_url):
-    """Extract available seasons and episodes from TV show page"""
     full_url = urljoin(BASE_URL, slug_url)
     
     headers = {
@@ -183,7 +248,6 @@ def get_episodes_list(slug_url):
         response = requests.get(full_url, headers=headers, timeout=15)
         
         if response.status_code == 200:
-            # Look for season buttons/options
             season_pattern = r'data-season="(\d+)"'
             seasons = re.findall(season_pattern, response.text)
             
@@ -192,7 +256,6 @@ def get_episodes_list(slug_url):
                 unique_seasons.sort()
                 
                 for season_num in unique_seasons:
-                    # Look for episode count in this season
                     episode_pattern = rf'data-season="{season_num}"[^>]*data-episode="(\d+)"'
                     episodes_in_season = re.findall(episode_pattern, response.text)
                     
@@ -201,10 +264,8 @@ def get_episodes_list(slug_url):
                         episode_nums.sort()
                         episodes["seasons"][season_num] = episode_nums
                     else:
-                        # Default to 12 episodes if cannot detect
                         episodes["seasons"][season_num] = list(range(1, 13))
             
-            # If no seasons found, assume Season 1 with 12 episodes
             if not episodes["seasons"]:
                 episodes["seasons"][1] = list(range(1, 13))
         
@@ -270,8 +331,9 @@ def extract_video_url_from_iframe(iframe_html):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*60)
-    print("🎬 MOVIE STREAMING SERVER - RUNNING")
+    print("🎬 MOVIE STREAMING SERVER - POPUP/REDIRECT PROTECTED")
     print("="*60)
     print(f"📍 http://localhost:{port}")
+    print("🛡️ Popups and redirects are blocked via sandboxed iframes")
     print("="*60 + "\n")
     app.run(host='0.0.0.0', port=port, debug=True)
