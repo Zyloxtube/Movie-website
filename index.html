@@ -106,6 +106,7 @@
             cursor: pointer;
             transition: transform 0.25s ease, box-shadow 0.25s;
             border: 1px solid #242e48;
+            position: relative;
         }
 
         .movie-card:hover {
@@ -114,11 +115,39 @@
             border-color: #6a82c0;
         }
 
+        .poster-container {
+            position: relative;
+        }
+
         .movie-poster {
             width: 100%;
             aspect-ratio: 2 / 3;
             object-fit: cover;
             background: #070b14;
+            display: block;
+        }
+
+        .type-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 5;
+        }
+
+        .type-label.movie {
+            background: #e50b1a;
+            color: white;
+        }
+
+        .type-label.tv {
+            background: #2d6a4f;
+            color: white;
         }
 
         .movie-info-card {
@@ -131,12 +160,6 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-
-        .movie-type {
-            font-size: 0.7rem;
-            color: #8a98c0;
-            margin-top: 0.2rem;
         }
 
         .loading {
@@ -171,10 +194,26 @@
             flex-wrap: wrap;
         }
 
+        .detail-poster-container {
+            position: relative;
+        }
+
         .detail-poster {
             width: 180px;
             border-radius: 16px;
             object-fit: cover;
+        }
+
+        .detail-type-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
         }
 
         .detail-text {
@@ -229,6 +268,11 @@
             flex-wrap: wrap;
         }
 
+        .episode-selector label {
+            color: #8a98c0;
+            font-size: 0.85rem;
+        }
+
         select, button {
             background: #1a2235;
             border: 1px solid #2a3452;
@@ -236,6 +280,10 @@
             border-radius: 8px;
             color: white;
             cursor: pointer;
+        }
+
+        select:hover, button:hover {
+            background: #2a3452;
         }
 
         iframe {
@@ -272,7 +320,7 @@
         <div class="nav-container">
             <div class="logo">🎬 CineNest</div>
             <div class="search-wrapper">
-                <input type="text" id="searchInput" class="search-input" placeholder="Search any movie or TV show... (Squid Game, Inception, Dune)" autocomplete="off">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search any movie or TV show... (Squid Game, Inception, Breaking Bad)" autocomplete="off">
                 <button id="searchBtn" class="search-btn">Search</button>
             </div>
         </div>
@@ -289,6 +337,7 @@
     <script>
         let currentSlugUrl = '';
         let currentMediaType = '';
+        let currentEpisodes = null;
 
         async function searchMovies() {
             const query = document.getElementById('searchInput').value.trim();
@@ -323,16 +372,19 @@
                 card.className = 'movie-card';
                 const title = item.t || 'Unknown';
                 const slugUrl = item.s;
-                const mediaType = item.d === 's' ? 'TV Series' : 'Movie';
+                const isTv = item.d === 's';
+                const mediaType = isTv ? 'TV Series' : 'Movie';
                 const posterUrl = item.p || 'https://via.placeholder.com/300x450?text=No+Poster';
                 
                 card.onclick = () => fetchMovieVideo(slugUrl, title, posterUrl, item.d);
                 
                 card.innerHTML = `
-                    <img class="movie-poster" src="${posterUrl}" alt="${title}" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                    <div class="poster-container">
+                        <img class="movie-poster" src="${posterUrl}" alt="${title}" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                        <div class="type-label ${isTv ? 'tv' : 'movie'}">${isTv ? '📺 SERIES' : '🎬 MOVIE'}</div>
+                    </div>
                     <div class="movie-info-card">
                         <div class="movie-title-card">${escapeHtml(title)}</div>
-                        <div class="movie-type">${mediaType}</div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -359,18 +411,22 @@
                 }
 
                 const isTv = typeCode === 's';
+                currentEpisodes = data.episodes;
                 const finalPoster = data.poster || poster;
                 
                 let html = `
                     <div class="detail-panel">
                         <div class="detail-header">
                             <div class="detail-title">${escapeHtml(data.title || title)}</div>
-                            <div style="font-size:0.8rem; color:#8a98c0; margin-top:0.3rem;">${isTv ? '📺 TV Series' : '🎬 Movie'}</div>
                         </div>
                         <div class="detail-body">
-                            <img class="detail-poster" src="${finalPoster}" alt="${escapeHtml(title)}" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                            <div class="detail-poster-container">
+                                <img class="detail-poster" src="${finalPoster}" alt="${escapeHtml(title)}" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                                <div class="detail-type-label ${isTv ? 'tv' : 'movie'}">${isTv ? '📺 TV SERIES' : '🎬 MOVIE'}</div>
+                            </div>
                             <div class="detail-text">
                                 <p>Click the play button below to start watching.</p>
+                                ${isTv ? '<p style="color:#6a88ff;">📺 TV Series - You can select different seasons and episodes below</p>' : ''}
                             </div>
                         </div>
                         <div class="player-container" id="playerContainer">
@@ -379,12 +435,30 @@
                         </div>
                 `;
                 
-                if (isTv) {
+                if (isTv && currentEpisodes && currentEpisodes.seasons) {
+                    const seasons = Object.keys(currentEpisodes.seasons).sort((a,b) => parseInt(a)-parseInt(b));
+                    
                     html += `
                         <div class="episode-selector">
-                            <span>📺 Season:</span>
+                            <label>📺 Season:</label>
+                            <select id="seasonSelect">
+                                ${seasons.map(s => `<option value="${s}">Season ${s}</option>`).join('')}
+                            </select>
+                            <label>📺 Episode:</label>
+                            <select id="episodeSelect">
+                                <option value="1">Episode 1</option>
+                            </select>
+                            <button id="loadEpisodeBtn">Load Episode</button>
+                            <span style="color:#6a88ff; font-size:0.8rem;" id="episodeInfo"></span>
+                        </div>
+                    `;
+                } else if (isTv) {
+                    // Fallback if no episode data
+                    html += `
+                        <div class="episode-selector">
+                            <label>📺 Season:</label>
                             <input type="number" id="seasonNum" min="1" value="1" style="width:70px;">
-                            <span>Episode:</span>
+                            <label>Episode:</label>
                             <input type="number" id="episodeNum" min="1" value="1" style="width:70px;">
                             <button id="loadEpisodeBtn">Load Episode</button>
                         </div>
@@ -393,6 +467,44 @@
                 
                 html += `</div>`;
                 detailContainer.innerHTML = html;
+                
+                // Setup season/episode dropdowns if TV show
+                if (isTv && currentEpisodes && currentEpisodes.seasons) {
+                    const seasonSelect = document.getElementById('seasonSelect');
+                    const episodeSelect = document.getElementById('episodeSelect');
+                    const episodeInfo = document.getElementById('episodeInfo');
+                    
+                    function updateEpisodeDropdown() {
+                        const selectedSeason = parseInt(seasonSelect.value);
+                        const episodes = currentEpisodes.seasons[selectedSeason] || [];
+                        episodeSelect.innerHTML = '';
+                        
+                        if (episodes.length > 0) {
+                            episodes.forEach(ep => {
+                                const option = document.createElement('option');
+                                option.value = ep;
+                                option.textContent = `Episode ${ep}`;
+                                episodeSelect.appendChild(option);
+                            });
+                            if (episodeInfo) {
+                                episodeInfo.textContent = `${episodes.length} episodes available`;
+                            }
+                        } else {
+                            for (let i = 1; i <= 12; i++) {
+                                const option = document.createElement('option');
+                                option.value = i;
+                                option.textContent = `Episode ${i}`;
+                                episodeSelect.appendChild(option);
+                            }
+                            if (episodeInfo) {
+                                episodeInfo.textContent = `~12 episodes (estimated)`;
+                            }
+                        }
+                    }
+                    
+                    seasonSelect.addEventListener('change', updateEpisodeDropdown);
+                    updateEpisodeDropdown();
+                }
                 
                 // Setup play button with the video URL
                 const playBtn = document.getElementById('playBtn');
@@ -419,8 +531,15 @@
                     const loadBtn = document.getElementById('loadEpisodeBtn');
                     if (loadBtn) {
                         loadBtn.addEventListener('click', async () => {
-                            const season = document.getElementById('seasonNum').value;
-                            const episode = document.getElementById('episodeNum').value;
+                            let season, episode;
+                            
+                            if (currentEpisodes && currentEpisodes.seasons) {
+                                season = document.getElementById('seasonSelect').value;
+                                episode = document.getElementById('episodeSelect').value;
+                            } else {
+                                season = document.getElementById('seasonNum').value;
+                                episode = document.getElementById('episodeNum').value;
+                            }
                             
                             const newPlayBtn = document.getElementById('playBtn');
                             const newIframeWrapper = document.getElementById('iframeWrapper');
@@ -430,6 +549,10 @@
                                 newIframeWrapper.innerHTML = '';
                                 newIframeWrapper.style.display = 'none';
                             }
+                            
+                            // Show loading indicator
+                            loadBtn.textContent = 'Loading...';
+                            loadBtn.disabled = true;
                             
                             try {
                                 const episodeResponse = await fetch(`/api/tv/${encodeURIComponent(slugUrl)}?season=${season}&episode=${episode}`);
@@ -448,6 +571,9 @@
                                 }
                             } catch (error) {
                                 console.error('Error loading episode:', error);
+                            } finally {
+                                loadBtn.textContent = 'Load Episode';
+                                loadBtn.disabled = false;
                             }
                         });
                     }
