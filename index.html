@@ -19,7 +19,6 @@
             min-height: 100vh;
         }
 
-        /* ambient background */
         .bg-glow {
             position: fixed;
             top: 0;
@@ -31,7 +30,6 @@
             z-index: -1;
         }
 
-        /* navigation */
         .navbar {
             background: rgba(5, 10, 20, 0.92);
             backdrop-filter: blur(14px);
@@ -109,14 +107,12 @@
             transform: scale(0.97);
         }
 
-        /* main container */
         .container {
             max-width: 1400px;
             margin: 2rem auto;
             padding: 0 2rem;
         }
 
-        /* section header */
         .section-header {
             display: flex;
             justify-content: space-between;
@@ -130,7 +126,6 @@
             font-weight: 500;
         }
 
-        /* movie grid */
         .movies-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(170px, 210px));
@@ -187,14 +182,12 @@
             font-size: 1rem;
         }
 
-        /* loading spinner */
         .loading-spinner {
             text-align: center;
             padding: 3rem;
             color: #8c9ac0;
         }
 
-        /* detail panel */
         .detail-panel {
             margin-top: 2.5rem;
             background: #0c111e;
@@ -276,7 +269,6 @@
             font-size: 0.7rem;
         }
 
-        /* video player */
         .player-section {
             margin: 0 2rem 2rem 2rem;
             border-radius: 24px;
@@ -411,7 +403,6 @@
 </div>
 
 <script>
-    // API endpoint (relative to backend)
     const API_BASE = '';
 
     async function searchMovies(query) {
@@ -567,7 +558,6 @@
         
         container.innerHTML = html;
         
-        // Attach play functionality
         const overlay = document.getElementById('playOverlay');
         const iframeWrapper = document.getElementById('iframeWrapper');
         
@@ -592,7 +582,6 @@
             }
         }
         
-        // Scroll to details
         container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -606,7 +595,6 @@
         });
     }
 
-    // Event listeners
     const searchBtn = document.getElementById('searchBtn');
     const searchInput = document.getElementById('searchInput');
     
@@ -620,7 +608,6 @@
         }
     });
     
-    // Load default movies on page load
     loadDefaultMovies();
 </script>
 </body>
